@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "@node-steam/vdf": "^2.2.0",
+    "axios": "^1.7.7",
+    "globaloffensive": "^3.2.0",
+    "readline-sync": "^1.4.10",
+    "steam-totp": "^2.1.2",
+    "steam-tradeoffer-manager": "^2.11.6",
+    "steam-user": "^5.2.0",
+    "steamcommunity": "^3.48.4"
+  }
+}
