@@ -38,7 +38,9 @@ user.logOn({
 ```
 ## Usage
 
-to run code:
+To run this script:
+
+1. **Edit Configuration**  
+   Open the script file:
+   ```bash
    node index.js
-
-
