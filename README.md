@@ -25,6 +25,7 @@ This project requires the following Node.js packages:
    ```bash
    git clone https://github.com/your-username/steam-inventory-manager.git
    cd steam-inventory-manager
+   ```
    install Required packages in Requirements
 2. Configure:
    input your login and password in index file
