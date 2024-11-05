@@ -35,5 +35,10 @@ user.logOn({
     accountName: 'login_steam',
     password: 'password_steam',
 });
+```
+## Usage
+
+to run code:
+   node index.js
 
 
