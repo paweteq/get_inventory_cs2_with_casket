@@ -17,6 +17,7 @@ This project requires the following Node.js packages:
 - `globaloffensive`: A library for interacting with CS:GO's Game Coordinator (GC).
 - `steam-totp`: A library for handling Steam's 2-factor authentication.
 - `fs` (File System): Built-in Node.js module for file handling.
+- `@node-steam/vdf`: tool to read valve files to convert to json
 
 ## Installation
 
