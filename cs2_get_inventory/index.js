@@ -24,9 +24,9 @@ csgo.on('connectedToGC', async ()  => {
 
 fs.writeFile('data.json', jsonString, (err) => {
     if (err) {
-        console.error("Wystąpił błąd podczas zapisywania pliku:", err);
+        console.error("An error occurred while saving the file:", err);
     } else {
-        console.log("Dane zostały zapisane do pliku data.json.");
+        console.log("The data can be in the data.json file.");
     }
 });
 });
