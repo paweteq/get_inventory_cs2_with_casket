@@ -1,7 +1,15 @@
 {
+  "name": "cs2-inventory-manager",
+  "version": "1.0.0",
+  "description": "Pobiera ekwipunek CS2 (wraz z magazynami) i ceny z CSFloat",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
   "dependencies": {
     "@node-steam/vdf": "^2.2.0",
     "axios": "^1.7.7",
+    "csgo-fade-percentage-calculator": "^2.0.0",
     "globaloffensive": "^3.2.0",
     "readline-sync": "^1.4.10",
     "steam-totp": "^2.1.2",
