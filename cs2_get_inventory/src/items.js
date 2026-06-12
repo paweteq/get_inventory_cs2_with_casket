@@ -159,7 +159,13 @@ function analyze_item_type(item) {
     if (IGNORED_ITEM_IDS.includes(String(item.id))) return 'unknown';
     if (item?.attribute?.[0]?.def_index === ATTR_STORAGE_INFO) return 'unknown';
 
-    const schema_name = get_schema_item(item).name;
+    const schema_item = get_schema_item(item);
+    if (!schema_item) {
+        // przedmiotu nie ma w items_game.txt (np. plik schematu jest nieaktualny)
+        console.warn(`Pominieto przedmiot o def_index ${item.def_index} (id ${item.id}) - brak w items_game.txt`);
+        return 'unknown';
+    }
+    const schema_name = schema_item.name;
     const name_lower = schema_name.toLowerCase();
 
     if (name_lower.includes('coin') || name_lower.includes('tournament_journal')) return 'coin';
@@ -237,6 +243,15 @@ function get_keychain_name(item) {
 }
 
 function get_item_name(item, item_type) {
+    try {
+        return build_item_name(item, item_type);
+    } catch (err) {
+        // np. brak paint kita / definicji w nieaktualnym items_game.txt
+        return undefined;
+    }
+}
+
+function build_item_name(item, item_type) {
     switch (item_type) {
         case 'weapon_skin': return get_weapon_skin_name(item);
         case 'gloves': return get_glove_name(item);
@@ -353,6 +368,12 @@ async function Process_Items(inventory, csgo) {
             rarity: item.rarity,
             name: get_item_name(item, item_type),
         };
+
+        if (!item_res.name) {
+            // nie udalo sie zbudowac nazwy (np. brak tlumaczenia w csgo_english.txt)
+            console.warn(`Pominieto przedmiot o def_index ${item.def_index} (id ${item.id}, typ ${item_type}) - nie udalo sie ustalic nazwy`);
+            continue;
+        }
 
         if (item_type === 'weapon_skin' && item.stickers?.length > 0) {
             item_res.stickers = get_sticker_list(item);
