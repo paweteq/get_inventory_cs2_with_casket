@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS2 Inventory</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2230;
+    --border: #2a3140;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #3b82f6;
+    --accent-2: #2563eb;
+    --green: #3fb950;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, #16203a 0%, var(--bg) 60%);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 24px; }
+
+  header.top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 24px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand .logo {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), #8847ff);
+    display: grid; place-items: center; font-weight: 800; font-size: 18px;
+  }
+  .brand h1 { font-size: 20px; margin: 0; font-weight: 700; }
+  .brand p { margin: 0; color: var(--muted); font-size: 13px; }
+
+  /* ---------- karty / panele ---------- */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .center-stage { max-width: 440px; margin: 8vh auto 0; }
+
+  label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
+  input {
+    width: 100%; padding: 11px 13px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--panel-2);
+    color: var(--text); font-size: 15px; outline: none;
+  }
+  input:focus { border-color: var(--accent); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  button {
+    cursor: pointer; border: none; border-radius: 10px;
+    background: var(--accent); color: #fff; font-weight: 600; font-size: 15px;
+    padding: 12px 18px; transition: background .15s;
+  }
+  button:hover { background: var(--accent-2); }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+  button.block { width: 100%; margin-top: 22px; }
+  button.ghost { background: var(--panel-2); border: 1px solid var(--border); }
+  button.ghost:hover { background: #232b3a; }
+
+  .err {
+    margin-top: 16px; padding: 11px 14px; border-radius: 10px;
+    background: rgba(248,81,73,.12); border: 1px solid rgba(248,81,73,.4);
+    color: #ff9c96; font-size: 14px;
+  }
+
+  /* ---------- spinner / progress ---------- */
+  .loading { text-align: center; padding: 28px 0; }
+  .spinner {
+    width: 46px; height: 46px; margin: 0 auto 18px;
+    border: 4px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .progress-track {
+    height: 8px; border-radius: 99px; background: var(--panel-2);
+    overflow: hidden; margin-top: 16px;
+  }
+  .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .25s; }
+
+  /* ---------- pasek statystyk ---------- */
+  .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .stat {
+    flex: 1; min-width: 160px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px;
+  }
+  .stat .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .stat .v { font-size: 26px; font-weight: 800; margin-top: 4px; }
+  .stat .v.green { color: var(--green); }
+
+  /* ---------- toolbar ---------- */
+  .toolbar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .toolbar input, .toolbar select {
+    padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--text); font-size: 14px;
+  }
+  .toolbar input { flex: 1; min-width: 220px; }
+
+  /* ---------- siatka przedmiotow ---------- */
+  .grid {
+    display: grid; gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  }
+  .item {
+    position: relative; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+    display: flex; flex-direction: column;
+    border-top: 3px solid var(--rar, var(--border));
+    transition: transform .12s, border-color .12s;
+  }
+  .item:hover { transform: translateY(-3px); border-color: #3a4456; }
+  .item .thumb {
+    height: 120px; display: grid; place-items: center; padding: 8px;
+    background: radial-gradient(120px 80px at 50% 40%, #20283a, var(--panel));
+  }
+  .item .thumb img { max-width: 100%; max-height: 100%; }
+  .item .thumb .noimg { color: var(--muted); font-size: 12px; }
+  .item .meta { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .item .name { font-size: 13px; line-height: 1.3; max-height: 34px; overflow: hidden; }
+  .item .row { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
+  .item .price { font-weight: 700; font-size: 15px; }
+  .item .price.none { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .badge {
+    font-size: 10px; padding: 2px 7px; border-radius: 99px;
+    background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);
+  }
+  .badge.casket { background: rgba(136,71,255,.15); color: #b890ff; border-color: rgba(136,71,255,.4); }
+
+  /* licznik ilosci na rogu miniatury (dla grupowanych przedmiotow) */
+  .item .count {
+    position: absolute; top: 8px; right: 8px; z-index: 2;
+    background: rgba(13,17,23,.88); border: 1px solid var(--border);
+    color: var(--text); font-size: 12px; font-weight: 800;
+    padding: 3px 9px; border-radius: 99px; backdrop-filter: blur(2px);
+  }
+
+  .empty { text-align: center; color: var(--muted); padding: 60px 0; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo">CS</div>
+      <div>
+        <h1>CS2 Inventory</h1>
+        <p>Wartość ekwipunku wg najniższych cen CSFloat</p>
+      </div>
+    </div>
+    <button id="logoutBtn" class="ghost" style="display:none">Wyloguj / od nowa</button>
+  </header>
+
+  <!-- ===== EKRAN: logowanie ===== -->
+  <section id="screen-login" class="center-stage card">
+    <h2 style="margin:0 0 4px">Zaloguj się do Steam</h2>
+    <p style="color:var(--muted);margin:0;font-size:13px">
+      Wszystko działa lokalnie na Twoim komputerze. Dane logowania nie są nigdzie wysyłane.
+    </p>
+    <label>Login Steam</label>
+    <input id="accountName" autocomplete="username" placeholder="twoj_login">
+    <label>Hasło</label>
+    <input id="password" type="password" autocomplete="current-password" placeholder="••••••••">
+    <label>Klucz API CSFloat <span style="color:var(--muted)">(opcjonalnie)</span></label>
+    <input id="apiKey" placeholder="przyspiesza pobieranie cen">
+    <div class="hint">Bez klucza ceny pobierają się wolniej (1 zapytanie / 1,5 s).</div>
+    <button id="loginBtn" class="block">Zaloguj i pobierz ekwipunek</button>
+    <div id="loginErr" class="err" style="display:none"></div>
+  </section>
+
+  <!-- ===== EKRAN: Steam Guard ===== -->
+  <section id="screen-guard" class="center-stage card" style="display:none">
+    <h2 style="margin:0 0 4px">Kod Steam Guard</h2>
+    <p style="color:var(--muted);margin:0;font-size:13px">Wpisz kod z aplikacji Steam Guard lub e-maila.</p>
+    <label>Kod</label>
+    <input id="guardCode" placeholder="np. A1B2C" style="text-transform:uppercase;letter-spacing:.2em;font-size:18px;text-align:center"
+           autocomplete="one-time-code">
+    <button id="guardBtn" class="block">Potwierdź</button>
+    <div id="guardErr" class="err" style="display:none"></div>
+  </section>
+
+  <!-- ===== EKRAN: ladowanie ===== -->
+  <section id="screen-loading" class="center-stage card" style="display:none">
+    <div class="loading">
+      <div class="spinner"></div>
+      <div id="loadingText" style="font-size:15px">Logowanie…</div>
+      <div class="progress-track" id="progWrap" style="display:none">
+        <div class="progress-bar" id="progBar"></div>
+      </div>
+      <div id="progLabel" style="color:var(--muted);font-size:13px;margin-top:8px"></div>
+    </div>
+  </section>
+
+  <!-- ===== EKRAN: ekwipunek ===== -->
+  <section id="screen-inventory" style="display:none">
+    <div class="stats">
+      <div class="stat"><div class="k">Wartość całości</div><div class="v green" id="statTotal">$0.00</div></div>
+      <div class="stat"><div class="k">Liczba przedmiotów</div><div class="v" id="statCount">0</div></div>
+      <div class="stat"><div class="k">Wycenione</div><div class="v" id="statPriced">0</div></div>
+    </div>
+    <div id="dataAge" style="color:var(--muted);font-size:13px;margin:-8px 0 18px"></div>
+    <div class="toolbar">
+      <input id="search" placeholder="Szukaj po nazwie…">
+      <select id="sort">
+        <option value="price_desc">Cena: malejąco</option>
+        <option value="price_asc">Cena: rosnąco</option>
+        <option value="name">Nazwa: A→Z</option>
+      </select>
+      <select id="filter">
+        <option value="all">Wszystko</option>
+        <option value="weapon_skin">Skiny broni</option>
+        <option value="knife">Noże / rękawice</option>
+        <option value="sticker">Naklejki</option>
+        <option value="crate">Skrzynie / kapsuły</option>
+        <option value="other">Pozostałe</option>
+      </select>
+    </div>
+    <div id="grid" class="grid"></div>
+    <div id="empty" class="empty" style="display:none">Brak przedmiotów pasujących do filtra.</div>
+  </section>
+
+  <footer>Narzędzie lokalne · ceny z CSFloat · obrazy z CDN Steam</footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const screens = ['login', 'guard', 'loading', 'inventory'];
+function show(name) {
+  screens.forEach(s => $('screen-' + s).style.display = (s === name ? '' : 'none'));
+  $('logoutBtn').style.display = (name === 'inventory') ? '' : 'none';
+}
+
+let allItems = [];      // splaszczona, zdeduplikowana lista
+let pollTimer = null;
+
+const RARITY = {
+  1: '#b0c3d9', 2: '#5e98d9', 3: '#4b69ff', 4: '#8847ff',
+  5: '#d32ce6', 6: '#eb4b4b', 7: '#e4ae39',
+};
+const STATUS_TEXT = {
+  logowanie: 'Logowanie do Steam…',
+  steam_guard: 'Oczekiwanie na kod Steam Guard…',
+  zalogowano: 'Zalogowano, łączenie z grą…',
+  pobieranie_ekwipunku: 'Pobieranie ekwipunku z Game Coordinatora…',
+  pobieranie_cen: 'Pobieranie cen i zdjęć z CSFloat…',
+};
+
+function steamImg(icon_url) {
+  return 'https://community.cloudflare.steamstatic.com/economy/image/' + icon_url + '/130x100';
+}
+function money(v) { return '$' + Number(v).toFixed(2); }
+function formatAge(ts) {
+  const d = new Date(ts);
+  const mins = Math.round((Date.now() - ts) / 60000);
+  let ago;
+  if (mins < 1) ago = 'przed chwilą';
+  else if (mins < 60) ago = mins + ' min temu';
+  else ago = Math.round(mins / 60) + ' godz. temu';
+  return d.toLocaleString('pl-PL') + ' (' + ago + ')';
+}
+
+// ---------- logowanie ----------
+$('loginBtn').onclick = async () => {
+  const accountName = $('accountName').value.trim();
+  const password = $('password').value;
+  const apiKey = $('apiKey').value.trim();
+  $('loginErr').style.display = 'none';
+  if (!accountName || !password) {
+    $('loginErr').textContent = 'Podaj login i hasło.';
+    $('loginErr').style.display = '';
+    return;
+  }
+  $('loginBtn').disabled = true;
+  try {
+    const r = await fetch('/api/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountName, password, apiKey }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Błąd logowania.');
+    show('loading');
+    startPolling();
+  } catch (e) {
+    $('loginErr').textContent = e.message;
+    $('loginErr').style.display = '';
+  } finally {
+    $('loginBtn').disabled = false;
+  }
+};
+
+// ---------- Steam Guard ----------
+$('guardBtn').onclick = async () => {
+  const code = $('guardCode').value.trim();
+  $('guardErr').style.display = 'none';
+  if (!code) return;
+  $('guardBtn').disabled = true;
+  try {
+    const r = await fetch('/api/guard', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Błąd.');
+    show('loading');
+    startPolling();   // wznawiamy odpytywanie statusu po podaniu kodu
+  } catch (e) {
+    $('guardErr').textContent = e.message;
+    $('guardErr').style.display = '';
+  } finally {
+    $('guardBtn').disabled = false;
+  }
+};
+$('guardCode').addEventListener('keydown', e => { if (e.key === 'Enter') $('guardBtn').click(); });
+
+// ---------- polling statusu ----------
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollStatus, 1000);
+  pollStatus();
+}
+async function pollStatus() {
+  let j;
+  try { j = await (await fetch('/api/status')).json(); } catch { return; }
+
+  if (j.status === 'steam_guard') {
+    clearInterval(pollTimer); pollTimer = null;
+    show('guard'); $('guardCode').focus();
+    return;
+  }
+  if (j.status === 'error') {
+    clearInterval(pollTimer); pollTimer = null;
+    show('login');
+    $('loginErr').textContent = j.error || 'Wystąpił błąd.';
+    $('loginErr').style.display = '';
+    return;
+  }
+  if (j.ready) {
+    clearInterval(pollTimer); pollTimer = null;
+    loadInventory();
+    return;
+  }
+  // w trakcie
+  show('loading');
+  $('loadingText').textContent = STATUS_TEXT[j.status] || 'Pracuję…';
+  if (j.status === 'pobieranie_cen' && j.progress && j.progress.total) {
+    const pct = Math.round(100 * j.progress.done / j.progress.total);
+    $('progWrap').style.display = '';
+    $('progBar').style.width = pct + '%';
+    $('progLabel').textContent = j.progress.done + ' / ' + j.progress.total + ' (' + pct + '%)';
+  } else {
+    $('progWrap').style.display = 'none';
+    $('progLabel').textContent = '';
+  }
+}
+
+// ---------- wczytanie i render ----------
+function flatten(items, out, inCasket) {
+  for (const it of items) {
+    if (Array.isArray(it.items)) { flatten(it.items, out, true); continue; }
+    if (!it.name) continue;
+    out.push(it);
+  }
+}
+function categoryOf(it) {
+  const t = it.type;
+  if (t === 'weapon_skin') return 'weapon_skin';
+  if (t === 'gloves' || (it.name && (it.name.includes('★') && t === 'weapon_skin'))) return 'knife';
+  if (t === 'gloves') return 'knife';
+  if (it.name && it.name.includes('★')) return 'knife';
+  if (t === 'sticker') return 'sticker';
+  if (t === 'crate') return 'crate';
+  return 'other';
+}
+
+async function loadInventory() {
+  let data;
+  try { data = await (await fetch('/api/inventory')).json(); }
+  catch { return; }
+
+  const flat = [];
+  flatten(data.items, flat, false);
+  // deduplikacja po id
+  const seen = new Set();
+  allItems = flat.filter(it => { if (seen.has(it.id)) return false; seen.add(it.id); return true; });
+
+  const priced = allItems.filter(i => typeof i.price_csfloat_usd === 'number').length;
+  $('statTotal').textContent = money(data.total_usd);
+  $('statCount').textContent = allItems.length;
+  $('statPriced').textContent = priced;
+  $('dataAge').textContent = data.cached_at ? ('Dane z: ' + formatAge(data.cached_at)) : '';
+
+  show('inventory');
+  render();
+}
+
+// Przedmiot jest "stackowalny" (grupowany), gdy nie ma floata ani seeda -
+// czyli skrzynie, naklejki, graffiti, monety, music kity, agenci, patche, piny.
+// Skiny i rekawice maja paint_wear (float), wiec zawsze osobno.
+function isStackable(it) {
+  return it.paint_wear == null && it.paint_seed == null;
+}
+function groupKey(it) {
+  // info_seed rozroznia np. warianty keychainow / fazy, wiec nie laczymy ich razem
+  return it.name + '|' + (it.info_seed || '');
+}
+
+function render() {
+  const q = $('search').value.trim().toLowerCase();
+  const sort = $('sort').value;
+  const filter = $('filter').value;
+
+  const list = allItems.filter(it => {
+    if (q && !it.name.toLowerCase().includes(q)) return false;
+    if (filter !== 'all' && categoryOf(it) !== filter) return false;
+    return true;
+  });
+
+  // grupowanie: stackowalne lacze po nazwie (+info_seed), reszta osobno
+  const groups = [];
+  const byKey = new Map();
+  for (const it of list) {
+    if (isStackable(it)) {
+      const key = groupKey(it);
+      let g = byKey.get(key);
+      if (!g) { g = { item: it, count: 0 }; byKey.set(key, g); groups.push(g); }
+      g.count++;
+    } else {
+      groups.push({ item: it, count: 1 });
+    }
+  }
+
+  groups.sort((a, b) => {
+    const pa = a.item.price_csfloat_usd ?? -1, pb = b.item.price_csfloat_usd ?? -1;
+    if (sort === 'price_desc') return pb - pa;
+    if (sort === 'price_asc') return pa - pb;
+    return a.item.name.localeCompare(b.item.name);
+  });
+
+  const grid = $('grid');
+  grid.innerHTML = '';
+  $('empty').style.display = groups.length ? 'none' : '';
+
+  const frag = document.createDocumentFragment();
+  for (const g of groups) {
+    const it = g.item;
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.style.setProperty('--rar', RARITY[it.rarity] || 'var(--border)');
+
+    const countChip = g.count > 1 ? `<span class="count">×${g.count}</span>` : '';
+    const thumb = it.icon_url
+      ? `<div class="thumb">${countChip}<img loading="lazy" src="${steamImg(it.icon_url)}" alt=""></div>`
+      : `<div class="thumb">${countChip}<span class="noimg">brak zdjęcia</span></div>`;
+
+    let priceHtml;
+    if (typeof it.price_csfloat_usd === 'number') {
+      priceHtml = `<span class="price">${money(it.price_csfloat_usd)}</span>`;
+    } else if (it.tradeable === false) {
+      priceHtml = ''; // niezbywalne (medale, monety, odznaki) - bez miejsca na cene
+    } else {
+      priceHtml = `<span class="price none">—</span>`; // zbywalne, ale brak oferty
+    }
+
+    const extra = it.info_seed ? `<span class="badge">${escapeHtml(it.info_seed)}</span>` : '';
+    const rowHtml = (priceHtml || extra) ? `<div class="row">${priceHtml}${extra}</div>` : '';
+
+    el.innerHTML = thumb + `
+      <div class="meta">
+        <div class="name">${escapeHtml(it.name)}</div>
+        ${rowHtml}
+      </div>`;
+    frag.appendChild(el);
+  }
+  grid.appendChild(frag);
+}
+function escapeHtml(s) {
+  return s.replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+}
+
+$('search').addEventListener('input', render);
+$('sort').addEventListener('change', render);
+$('filter').addEventListener('change', render);
+$('logoutBtn').onclick = () => { allItems = []; show('login'); };
+
+// Przy wejsciu na strone sprawdzamy, czy backend ma juz dane / trwa praca.
+(async function init() {
+  let j;
+  try { j = await (await fetch('/api/status')).json(); } catch { return; }
+  if (j.ready) { loadInventory(); return; }
+  if (j.status === 'steam_guard') { show('guard'); $('guardCode').focus(); return; }
+  if (j.status && j.status !== 'idle' && j.status !== 'error') { show('loading'); startPolling(); }
+})();
+</script>
+</body>
+</html>

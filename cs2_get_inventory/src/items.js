@@ -29,7 +29,13 @@ const tokens_lowercase = Object.fromEntries(
 // Tlumaczy token (np. '#PaintKit_cu_ak47_rubber_Tag') na nazwe z plikow gry
 function translate(token) {
     if (token == null) return undefined;
-    return tokens[token.replace('#', '')];
+    const key = token.replace('#', '');
+    // Steam ma niekonsekwentna wielkosc liter w tokenach (np. items_game ma
+    // "PaintKit_sp_palm_Tag", a tlumaczenia "Paintkit_sp_palm_Tag"). Najpierw
+    // proba dokladna, potem bez rozrozniania wielkosci liter.
+    const exact = tokens[key];
+    if (exact !== undefined) return exact;
+    return tokens_lowercase[key.toLowerCase()];
 }
 
 function translate_case_insensitive(token) {
@@ -331,14 +337,37 @@ function set_trade_status(item_res, item, item_type) {
 
 // ============================ Magazyny (caskets) ============================
 
+// Limit czasu na pobranie zawartosci jednego magazynu (1 min). Jesli GC nie
+// odpowie, pomijamy ten magazyn (pusta lista) zamiast wieszac caly proces.
+const CASKET_TIMEOUT_MS = 60000;
+
 function get_casket_contents(csgo, casket) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         if (casket.casket_contained_item_count == 0) {
             return resolve([]);
         }
-        csgo.getCasketContents(casket.id, (err, contents) => {
-            if (err) return reject(err);
-            resolve(Process_Items(contents, csgo));
+        let done = false;
+        const timer = setTimeout(() => {
+            if (done) return;
+            done = true;
+            console.warn(`Magazyn ${casket.id} nie odpowiedzial w ${CASKET_TIMEOUT_MS / 1000}s - pomijam.`);
+            resolve([]);
+        }, CASKET_TIMEOUT_MS);
+
+        csgo.getCasketContents(casket.id, async (err, contents) => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            if (err) {
+                console.warn(`Blad pobierania magazynu ${casket.id}: ${err.message || err} - pomijam.`);
+                return resolve([]);
+            }
+            try {
+                resolve(await Process_Items(contents, csgo));
+            } catch (e) {
+                console.warn(`Blad przetwarzania magazynu ${casket.id}: ${e.message} - pomijam.`);
+                resolve([]);
+            }
         });
     });
 }
@@ -348,7 +377,9 @@ function get_casket_contents(csgo, casket) {
 async function Process_Items(inventory, csgo) {
     const result = [];
 
-    for (const item of inventory) {
+    // kopia listy - biblioteka GC dopisuje zawartosc magazynow do csgo.inventory
+    // w trakcie dzialania, co powodowalo duplikaty w wynikach
+    for (const item of [...inventory]) {
         const item_type = analyze_item_type(item);
         if (item_type === 'unknown') continue;
 

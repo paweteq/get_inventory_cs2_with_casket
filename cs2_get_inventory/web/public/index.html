@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CS2 Inventory Manager</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          base: '#0b0e14', panel: '#141925', edge: '#222a3a', accent: '#4ea1ff',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { background: radial-gradient(1200px 600px at 70% -10%, #16203a 0%, #0b0e14 55%); }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #2a3346; border-radius: 6px; }
+</style>
+</head>
+<body class="text-slate-200 min-h-screen">
+<div class="max-w-7xl mx-auto px-4 py-8">
+
+  <header class="flex items-center justify-between mb-8">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-accent/20 border border-accent/40 grid place-items-center text-accent text-xl font-bold">CS</div>
+      <div>
+        <h1 class="text-xl font-semibold tracking-tight">CS2 Inventory Manager</h1>
+        <p class="text-xs text-slate-400">Ekwipunek + magazyny z wycen&#261; CSFloat</p>
+      </div>
+    </div>
+    <a href="https://csfloat.com/profile" target="_blank" rel="noopener"
+       class="text-xs text-slate-400 hover:text-accent transition">Sk&#261;d wzi&#261;&#263; klucz API?</a>
+  </header>
+
+  <!-- LOGIN -->
+  <section id="loginCard" class="max-w-md mx-auto bg-panel/80 backdrop-blur border border-edge rounded-2xl p-6 shadow-xl">
+    <h2 class="text-lg font-medium mb-1">Zaloguj si&#281; do Steam</h2>
+    <p class="text-xs text-slate-400 mb-5">Dane logowania s&#261; u&#380;ywane tylko lokalnie do po&#322;&#261;czenia ze Steam i nigdzie nie s&#261; zapisywane.</p>
+
+    <label class="block text-xs text-slate-400 mb-1">Login Steam</label>
+    <input id="accountName" type="text" autocomplete="username"
+           class="w-full mb-4 bg-base border border-edge rounded-lg px-3 py-2 outline-none focus:border-accent transition" />
+
+    <label class="block text-xs text-slate-400 mb-1">Has&#322;o</label>
+    <input id="password" type="password" autocomplete="current-password"
+           class="w-full mb-4 bg-base border border-edge rounded-lg px-3 py-2 outline-none focus:border-accent transition" />
+
+    <label class="block text-xs text-slate-400 mb-1">Klucz API CSFloat <span class="text-slate-600">(opcjonalnie)</span></label>
+    <input id="csfloatApiKey" type="text"
+           class="w-full mb-5 bg-base border border-edge rounded-lg px-3 py-2 outline-none focus:border-accent transition" />
+
+    <button id="loginBtn" onclick="startLogin()"
+            class="w-full bg-accent hover:bg-accent/90 text-base font-semibold rounded-lg py-2.5 transition">
+      Pobierz ekwipunek
+    </button>
+    <p id="loginError" class="text-rose-400 text-xs mt-3 hidden"></p>
+  </section>
+
+  <!-- STEAM GUARD -->
+  <section id="guardCard" class="max-w-md mx-auto bg-panel/80 backdrop-blur border border-edge rounded-2xl p-6 shadow-xl hidden">
+    <h2 class="text-lg font-medium mb-1">Steam Guard</h2>
+    <p id="guardMsg" class="text-xs text-slate-400 mb-5"></p>
+    <input id="guardCode" type="text" inputmode="text" autocomplete="one-time-code"
+           class="w-full mb-5 bg-base border border-edge rounded-lg px-3 py-2 text-center text-lg tracking-[0.3em] uppercase outline-none focus:border-accent transition" />
+    <button id="guardBtn" onclick="submitGuard()"
+            class="w-full bg-accent hover:bg-accent/90 text-base font-semibold rounded-lg py-2.5 transition">
+      Potwierd&#378;
+    </button>
+    <p id="guardError" class="text-rose-400 text-xs mt-3 hidden"></p>
+  </section>
+
+  <!-- PROGRESS -->
+  <section id="progressCard" class="max-w-md mx-auto bg-panel/80 backdrop-blur border border-edge rounded-2xl p-6 shadow-xl hidden text-center">
+    <svg class="spin w-10 h-10 mx-auto mb-4 text-accent" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.2" stroke-width="4"/>
+      <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+    </svg>
+    <p id="progressMsg" class="text-sm text-slate-300 mb-3">Pracuj&#281;...</p>
+    <div class="w-full bg-base rounded-full h-2 overflow-hidden border border-edge">
+      <div id="progressBar" class="bg-accent h-full transition-all" style="width:0%"></div>
+    </div>
+    <p id="progressCount" class="text-xs text-slate-500 mt-2"></p>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="resultsCard" class="hidden">
+    <div class="flex flex-wrap items-center gap-4 mb-6">
+      <div class="bg-panel border border-edge rounded-2xl px-5 py-3">
+        <div class="text-xs text-slate-400">Warto&#347;&#263; ca&#322;o&#347;ci</div>
+        <div id="totalValue" class="text-2xl font-bold text-accent">$0.00</div>
+      </div>
+      <div class="bg-panel border border-edge rounded-2xl px-5 py-3">
+        <div class="text-xs text-slate-400">Przedmiot&#243;w</div>
+        <div id="itemCount" class="text-2xl font-bold">0</div>
+      </div>
+      <div class="flex-1"></div>
+      <input id="search" oninput="render()" placeholder="Szukaj..."
+             class="bg-panel border border-edge rounded-lg px-3 py-2 outline-none focus:border-accent transition w-48" />
+      <select id="sort" onchange="render()"
+              class="bg-panel border border-edge rounded-lg px-3 py-2 outline-none focus:border-accent transition">
+        <option value="price_desc">Cena: malej&#261;co</option>
+        <option value="price_asc">Cena: rosn&#261;co</option>
+        <option value="name">Nazwa A-Z</option>
+      </select>
+      <button onclick="resetApp()" class="text-xs text-slate-400 hover:text-accent transition">Wyloguj</button>
+    </div>
+    <div id="grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+    <p id="emptyMsg" class="text-center text-slate-500 py-10 hidden">Brak przedmiot&#243;w pasuj&#261;cych do wyszukiwania.</p>
+  </section>
+
+</div>
+
+<script>
+let allItems = [];
+let pollTimer = null;
+
+const $ = (id) => document.getElementById(id);
+const show = (id) => $(id).classList.remove('hidden');
+const hide = (id) => $(id).classList.add('hidden');
+
+// Splaszcza drzewo (magazyny -> przedmioty) z deduplikacja po id
+function flatten(items, out, seen) {
+  for (const it of items) {
+    if (Array.isArray(it.items)) { flatten(it.items, out, seen); continue; }
+    if (!it.name || seen.has(it.id)) continue;
+    seen.add(it.id);
+    out.push(it);
+  }
+  return out;
+}
+
+async function startLogin() {
+  hide('loginError');
+  const body = {
+    accountName: $('accountName').value.trim(),
+    password: $('password').value,
+    csfloatApiKey: $('csfloatApiKey').value.trim(),
+  };
+  if (!body.accountName || !body.password) {
+    $('loginError').textContent = 'Podaj login i has&#322;o.';
+    show('loginError'); return;
+  }
+  $('loginBtn').disabled = true;
+  try {
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'B&#322;&#261;d logowania.');
+    hide('loginCard');
+    show('progressCard');
+    startPolling();
+  } catch (err) {
+    $('loginError').textContent = err.message;
+    show('loginError');
+    $('loginBtn').disabled = false;
+  }
+}
+
+async function submitGuard() {
+  hide('guardError');
+  const code = $('guardCode').value.trim();
+  if (!code) { $('guardError').textContent = 'Podaj kod.'; show('guardError'); return; }
+  $('guardBtn').disabled = true;
+  try {
+    const r = await fetch('/api/steam-guard', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'B&#322;&#261;d.');
+    hide('guardCard');
+    show('progressCard');
+  } catch (err) {
+    $('guardError').textContent = err.message;
+    show('guardError');
+    $('guardBtn').disabled = false;
+  }
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(poll, 1000);
+  poll();
+}
+
+async function poll() {
+  let s;
+  try { s = await (await fetch('/api/status')).json(); }
+  catch { return; }
+
+  if (s.state === 'steam_guard') {
+    hide('progressCard');
+    $('guardMsg').textContent = s.message || '';
+    show('guardCard');
+    $('guardBtn').disabled = false;
+    return;
+  }
+
+  if (['logging_in', 'connecting_gc', 'fetching', 'pricing', 'images'].includes(s.state)) {
+    hide('guardCard');
+    show('progressCard');
+    $('progressMsg').textContent = s.message || 'Pracuj&#281;...';
+    if (s.progress && s.progress.total) {
+      const pct = Math.round(100 * s.progress.done / s.progress.total);
+      $('progressBar').style.width = pct + '%';
+      $('progressCount').textContent = `${s.progress.done} / ${s.progress.total}`;
+    } else {
+      $('progressBar').style.width = '15%';
+      $('progressCount').textContent = '';
+    }
+    return;
+  }
+
+  if (s.state === 'done') {
+    clearInterval(pollTimer);
+    loadInventory();
+    return;
+  }
+
+  if (s.state === 'error') {
+    clearInterval(pollTimer);
+    hide('progressCard'); hide('guardCard');
+    show('loginCard');
+    $('loginBtn').disabled = false;
+    $('loginError').textContent = s.message || 'Wyst&#261;pi&#322; b&#322;&#261;d.';
+    show('loginError');
+  }
+}
+
+async function loadInventory() {
+  const items = await (await fetch('/api/inventory')).json();
+  allItems = flatten(items, [], new Set());
+  hide('progressCard');
+  show('resultsCard');
+
+  const total = allItems.reduce((sum, it) => sum + (typeof it.price_csfloat_usd === 'number' ? it.price_csfloat_usd : 0), 0);
+  $('totalValue').textContent = '$' + total.toFixed(2);
+  $('itemCount').textContent = allItems.length.toLocaleString('pl-PL');
+  render();
+}
+
+const RARITY_COLOR = {
+  1: '#b0c3d9', 2: '#5e98d9', 3: '#4b69ff', 4: '#8847ff',
+  5: '#d32ce6', 6: '#eb4b4b', 7: '#e4ae39',
+};
+
+function render() {
+  const q = $('search').value.trim().toLowerCase();
+  const sort = $('sort').value;
+  let list = allItems.filter(it => !q || it.name.toLowerCase().includes(q));
+
+  list.sort((a, b) => {
+    if (sort === 'name') return a.name.localeCompare(b.name);
+    const pa = a.price_csfloat_usd ?? -1, pb = b.price_csfloat_usd ?? -1;
+    return sort === 'price_asc' ? pa - pb : pb - pa;
+  });
+
+  const grid = $('grid');
+  grid.innerHTML = '';
+  $('emptyMsg').classList.toggle('hidden', list.length > 0);
+
+  const frag = document.createDocumentFragment();
+  for (const it of list) {
+    const price = typeof it.price_csfloat_usd === 'number' ? '$' + it.price_csfloat_usd.toFixed(2) : '&#8212;';
+    const border = RARITY_COLOR[it.rarity] || '#2a3346';
+    const card = document.createElement('div');
+    card.className = 'bg-panel border border-edge rounded-xl p-2 hover:-translate-y-0.5 hover:border-accent/60 transition group';
+    card.style.borderTopColor = border;
+    card.style.borderTopWidth = '3px';
+
+    const img = it.image
+      ? `<img src="${it.image}" loading="lazy" alt="" class="w-full h-24 object-contain mb-2" />`
+      : `<div class="w-full h-24 grid place-items-center text-slate-600 text-xs mb-2">brak obrazka</div>`;
+
+    const extra = [];
+    if (it.info_seed) extra.push(it.info_seed);
+    if (it.fade_percentage && it.fade_percentage.percentage)
+      extra.push(Math.round(it.fade_percentage.percentage) + '% fade');
+
+    card.innerHTML = `
+      ${img}
+      <div class="text-[11px] leading-tight text-slate-300 h-8 overflow-hidden">${it.name}</div>
+      <div class="flex items-center justify-between mt-1">
+        <span class="text-sm font-semibold text-accent">${price}</span>
+        ${extra.length ? `<span class="text-[10px] text-slate-500">${extra.join(' &#183; ')}</span>` : ''}
+      </div>`;
+    frag.appendChild(card);
+  }
+  grid.appendChild(frag);
+}
+
+function resetApp() {
+  allItems = [];
+  hide('resultsCard'); hide('guardCard'); hide('progressCard');
+  show('loginCard');
+  $('loginBtn').disabled = false;
+  $('password').value = '';
+}
+</script>
+</body>
+</html>
